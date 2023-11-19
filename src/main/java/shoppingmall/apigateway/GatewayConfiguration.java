@@ -13,6 +13,8 @@ import shoppingmall.apigateway.filters.JwtAuthorizationFilter;
 @Configuration
 public class GatewayConfiguration {
 
+    private final JwtAuthorizationFilter jwtAuthorizationFilter;
+
     @Bean
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
         return builder.routes()
@@ -42,8 +44,18 @@ public class GatewayConfiguration {
                         .filters(gatewayFilter -> gatewayFilter
                                 .removeRequestHeader(HttpHeaders.COOKIE)
                                 .rewritePath("/user-service/(?<segment>.*)", "/$\\{segment}")
-                                .filter(new JwtAuthorizationFilter()))
+                                .filter(jwtAuthorizationFilter))
                         .uri("lb://USER-SERVICE")
+                )
+                .route("main-service-1", predicate -> predicate
+                        .path("/main-service/**")
+                        .filters(gatewayFilterSpec -> gatewayFilterSpec
+                                .removeRequestHeader(HttpHeaders.COOKIE)
+                                .rewritePath("/main-service/(?<segment>.*)", "/$\\{segment}")
+                                .filter(jwtAuthorizationFilter)
+                        )
+                        .uri("lb://MAIN-SERVICE")
+
                 )
                 .build();
     }

@@ -2,25 +2,27 @@ package shoppingmall.apigateway.filters;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import io.jsonwebtoken.security.SignatureException;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
 import javax.crypto.SecretKey;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 @Slf4j
+@Component
 public class JwtAuthorizationFilter implements GatewayFilter {
 
-    private final SecretKey secretKey =
-            Keys.hmacShaKeyFor("secret_key_of_dong_ha_do_not_snap_this".getBytes(StandardCharsets.UTF_8));
+    @Value("${auth.jwt.key}")
+    private String key;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -35,22 +37,12 @@ public class JwtAuthorizationFilter implements GatewayFilter {
             if(authorization.startsWith("Bearer")) {
                 String jwtToken = authorization.replace("Bearer", "").trim();
                 try{
-                    Date expiration = Jwts.parser().verifyWith(secretKey)
-                            .build()
-                            .parseSignedClaims(jwtToken)
-                            .getPayload()
-                            .getExpiration();
-
-                    if(expiration.before(new Date())) {
+                    if(isValidateExpire(jwtToken)) {
                         throw new IllegalStateException("인증 정보가 만료됐습니다.");
                     }
 
-                    String subject = Jwts.parser().verifyWith(secretKey)
-                            .build()
-                            .parseSignedClaims(jwtToken)
-                            .getPayload()
-                            .getSubject();
-                    exchange.getRequest().mutate().header("X-GATEWAY-EMAIL", subject);
+                    String subject = getSubjectOf(jwtToken);
+                    exchange.getRequest().mutate().header("X-GATEWAY-SUBJECT", subject);
 
                 }catch(Exception e1){
                     exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
@@ -60,6 +52,27 @@ public class JwtAuthorizationFilter implements GatewayFilter {
         }
 
         return chain.filter(exchange);
+    }
+
+    private String getSubjectOf(String jwtToken) {
+        return Jwts.parser().verifyWith(secretKey())
+                .build()
+                .parseSignedClaims(jwtToken)
+                .getPayload()
+                .getSubject();
+    }
+
+    private boolean isValidateExpire(String jwtToken) {
+        Date expiration = Jwts.parser().verifyWith(secretKey())
+                .build()
+                .parseSignedClaims(jwtToken)
+                .getPayload()
+                .getExpiration();
+        return expiration.before(new Date());
+    }
+
+    private SecretKey secretKey() {
+        return Keys.hmacShaKeyFor(key.getBytes(StandardCharsets.UTF_8));
     }
 
 }
