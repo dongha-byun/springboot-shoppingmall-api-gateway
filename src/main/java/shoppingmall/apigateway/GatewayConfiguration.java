@@ -47,6 +47,14 @@ public class GatewayConfiguration {
                                 .filter(jwtAuthorizationFilter))
                         .uri("lb://USER-SERVICE")
                 )
+                .route("user-service-4", predicate -> predicate
+                        .path("/user-service/refresh")
+                        .and().method(HttpMethod.GET)
+                        .filters(gatewayFilter -> gatewayFilter
+                                .removeRequestHeader(HttpHeaders.COOKIE)
+                                .rewritePath("/user-service/(?<segment>.*)", "/$\\{segment}"))
+                        .uri("lb://USER-SERVICE")
+                )
                 .route("main-service-1", predicate -> predicate
                         .path("/main-service/**")
                         .filters(gatewayFilterSpec -> gatewayFilterSpec
@@ -55,7 +63,6 @@ public class GatewayConfiguration {
                                 .filter(jwtAuthorizationFilter)
                         )
                         .uri("lb://MAIN-SERVICE")
-
                 )
                 .build();
     }
