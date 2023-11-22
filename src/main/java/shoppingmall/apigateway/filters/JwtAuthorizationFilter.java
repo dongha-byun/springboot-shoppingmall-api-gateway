@@ -59,22 +59,27 @@ public class JwtAuthorizationFilter implements GatewayFilter {
 
             exchange.getRequest().mutate().header(X_GATEWAY_HEADER, getSubjectOf(jwtToken));
             return chain.filter(exchange);
-        }catch(Exception e){
-            log.error(e.getMessage());
+        } catch(NotExistsAuthorization e1) {
+            return sendErrorResponse(exchange, 701, e1);
+        } catch(AccessTokenExpiredException e2) {
+            return sendErrorResponse(exchange, 702, e2);
+        } catch(Exception e3){
+            return sendErrorResponse(exchange, 999, e3);
+        }
+    }
+
+    private Mono<Void> sendErrorResponse(ServerWebExchange exchange, int errorCode, Exception e) {
+        try {
+            ErrorResponse errorResponse = new ErrorResponse(errorCode, e.getMessage());
+            String errorBody = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(errorResponse);
 
             ServerHttpResponse response = exchange.getResponse();
-            ErrorResponse errorResponse = new ErrorResponse(701, e.getMessage());
-            String errorBody = "error message";
-            try {
-                errorBody = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(errorResponse);
-            } catch (JsonProcessingException ex) {
-                throw new RuntimeException(ex);
-            }
-
             response.setStatusCode(HttpStatus.UNAUTHORIZED);
             response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
             DataBuffer buffer = response.bufferFactory().wrap(errorBody.getBytes(StandardCharsets.UTF_8));
             return response.writeWith(Flux.just(buffer));
+        } catch (JsonProcessingException ex) {
+            throw new RuntimeException(ex);
         }
     }
 
