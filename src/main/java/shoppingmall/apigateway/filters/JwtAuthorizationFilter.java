@@ -25,6 +25,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import shoppingmall.apigateway.authorization.jwt.JwtManager;
 import shoppingmall.apigateway.exception.AccessTokenExpiredException;
 import shoppingmall.apigateway.exception.NotExistsAuthorization;
 
@@ -33,13 +34,12 @@ import shoppingmall.apigateway.exception.NotExistsAuthorization;
 @Component
 public class JwtAuthorizationFilter implements GatewayFilter {
 
-    @Value("${auth.jwt.key}")
-    private String key;
-
     private final ObjectMapper objectMapper;
+    private final JwtManager jwtManager;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        log.info("JwtAuthorizationFilter begin");
         try{
             List<String> authorizations = getAuthorizations(exchange);
 
@@ -53,11 +53,11 @@ public class JwtAuthorizationFilter implements GatewayFilter {
                     .orElseThrow(NotExistsAuthorization::new);
 
             String jwtToken = parseAuthorizationToken(authorization);
-            if(isValidateExpire(jwtToken)) {
+            if(jwtManager.isValidateExpire(jwtToken)) {
                 throw new AccessTokenExpiredException();
             }
 
-            exchange.getRequest().mutate().header(X_GATEWAY_HEADER, getSubjectOf(jwtToken));
+            exchange.getRequest().mutate().header(X_GATEWAY_HEADER, jwtManager.getSubjectOf(jwtToken));
             return chain.filter(exchange);
         } catch(NotExistsAuthorization e1) {
             return sendErrorResponse(exchange, 701, e1);
@@ -98,27 +98,6 @@ public class JwtAuthorizationFilter implements GatewayFilter {
 
     private boolean isNotExistsAuthorizationHeader(List<String> authorizations) {
         return authorizations == null || authorizations.isEmpty();
-    }
-
-    private String getSubjectOf(String jwtToken) {
-        return Jwts.parser().verifyWith(secretKey())
-                .build()
-                .parseSignedClaims(jwtToken)
-                .getPayload()
-                .getSubject();
-    }
-
-    private boolean isValidateExpire(String jwtToken) {
-        Date expiration = Jwts.parser().verifyWith(secretKey())
-                .build()
-                .parseSignedClaims(jwtToken)
-                .getPayload()
-                .getExpiration();
-        return expiration.before(new Date());
-    }
-
-    private SecretKey secretKey() {
-        return Keys.hmacShaKeyFor(key.getBytes(StandardCharsets.UTF_8));
     }
 
     record ErrorResponse(int code, String message){}
