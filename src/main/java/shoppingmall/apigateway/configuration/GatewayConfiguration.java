@@ -1,4 +1,4 @@
-package shoppingmall.apigateway;
+package shoppingmall.apigateway.configuration;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.cloud.gateway.route.RouteLocator;
@@ -71,6 +71,18 @@ public class GatewayConfiguration {
                                 .rewritePath("/main-service/(?<segment>.*)", "/$\\{segment}")
                                 .filter(jwtAuthorizationFilter)
                         )
+                        .uri("lb://MAIN-SERVICE")
+                )
+                .route("category-service-1", predicateSpec -> predicateSpec
+                        .path("/category-service/**")
+                        .filters(gatewayFilterSpec -> gatewayFilterSpec
+                                .removeRequestHeader(HttpHeaders.COOKIE)
+                                .rewritePath("/category-service/(?<segment>.*)", "/$\\{segment}")
+                        )
+                        .uri("lb://MAIN-SERVICE")
+                )
+                .route("image-viewer", predicateSpec -> predicateSpec
+                        .path("/image/**")
                         .uri("lb://MAIN-SERVICE")
                 )
                 .build();
