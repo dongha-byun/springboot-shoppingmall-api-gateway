@@ -1,4 +1,4 @@
-package shoppingmall.apigateway;
+package shoppingmall.apigateway.authorization;
 
 public class AuthorizationConstants {
     public static final String AUTH_TYPE = "Bearer";
