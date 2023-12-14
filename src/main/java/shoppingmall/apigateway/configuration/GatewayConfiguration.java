@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import shoppingmall.apigateway.filters.ExpireTokenFilter;
 import shoppingmall.apigateway.filters.JwtAuthorizationFilter;
 
 @RequiredArgsConstructor
@@ -14,24 +15,23 @@ import shoppingmall.apigateway.filters.JwtAuthorizationFilter;
 public class GatewayConfiguration {
 
     private final JwtAuthorizationFilter jwtAuthorizationFilter;
+    private final ExpireTokenFilter expireTokenFilter;
 
     @Bean
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
         return builder.routes()
                 .route("user-service-1", predicateSpec -> predicateSpec
-                        .path("/user-service/sign-up",
-                                "/user-service/find-email",
-                                "/user-service/find-pw",
-                                "/user-service/login"
+                        .path("/find-email", "/find-pw",
+                                "/sign-up","/login"
                         )
                         .and().method(HttpMethod.POST)
                         .filters(gatewayFilterSpec -> gatewayFilterSpec
-                                .removeRequestHeader(HttpHeaders.COOKIE)
-                                .rewritePath("/user-service/(?<segment>.*)", "/$\\{segment}"))
+                                .removeRequestHeader(HttpHeaders.COOKIE))
                         .uri("lb://USER-SERVICE")
                 )
                 .route("user-service-2", predicateSpec -> predicateSpec
-                        .path("/user-service/health-check", "/user-service/test-cookie")
+                        .path("/user-service/health-check",
+                                "/user-service/test-cookie")
                         .and().method(HttpMethod.GET)
                         .filters(gatewayFilterSpec -> gatewayFilterSpec
                                 .removeRequestHeader(HttpHeaders.COOKIE)
@@ -39,36 +39,34 @@ public class GatewayConfiguration {
                         .uri("lb://USER-SERVICE")
                 )
                 .route("user-service-3", predicateSpec -> predicateSpec
-                        .path("/user-service/users/**")
+                        .path("/users/**")
                         .and().method(HttpMethod.PUT, HttpMethod.GET)
                         .filters(gatewayFilterSpec -> gatewayFilterSpec
                                 .removeRequestHeader(HttpHeaders.COOKIE)
-                                .rewritePath("/user-service/(?<segment>.*)", "/$\\{segment}")
                                 .filter(jwtAuthorizationFilter))
                         .uri("lb://USER-SERVICE")
                 )
                 .route("user-service-4", predicateSpec -> predicateSpec
-                        .path("/user-service/refresh")
-                        .and().method(HttpMethod.GET)
-                        .filters(gatewayFilterSpec -> gatewayFilterSpec
-                                .removeRequestHeader(HttpHeaders.COOKIE)
-                                .rewritePath("/user-service/(?<segment>.*)", "/$\\{segment}"))
-                        .uri("lb://USER-SERVICE")
-                )
-                .route("main-service-1", predicateSpec -> predicateSpec
-                        .path("/main-service/partners/login")
+                        .path("/refresh")
                         .and().method(HttpMethod.POST)
                         .filters(gatewayFilterSpec -> gatewayFilterSpec
                                 .removeRequestHeader(HttpHeaders.COOKIE)
-                                .rewritePath("/main-service/(?<segment>.*)", "/$\\{segment}")
+                                .filter(expireTokenFilter))
+                        .uri("lb://USER-SERVICE")
+                )
+                .route("main-service-1", predicateSpec -> predicateSpec
+                        .path("/partners/login")
+                        .and().method(HttpMethod.POST)
+                        .filters(gatewayFilterSpec -> gatewayFilterSpec
+                                .removeRequestHeader(HttpHeaders.COOKIE)
                         )
                         .uri("lb://MAIN-SERVICE")
                 )
                 .route("main-service-2", predicateSpec -> predicateSpec
-                        .path("/main-service/**")
+                        .order(Integer.MAX_VALUE)
+                        .path("/**")
                         .filters(gatewayFilterSpec -> gatewayFilterSpec
                                 .removeRequestHeader(HttpHeaders.COOKIE)
-                                .rewritePath("/main-service/(?<segment>.*)", "/$\\{segment}")
                                 .filter(jwtAuthorizationFilter)
                         )
                         .uri("lb://MAIN-SERVICE")

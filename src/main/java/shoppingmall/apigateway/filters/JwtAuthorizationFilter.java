@@ -29,25 +29,21 @@ import shoppingmall.apigateway.exception.NotExistsAuthorization;
 @Component
 public class JwtAuthorizationFilter implements GatewayFilter {
 
+    private final AuthorizationHeaderManager authorizationHeaderManager;
     private final ObjectMapper objectMapper;
     private final JwtManager jwtManager;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        log.info("JwtAuthorizationFilter begin");
         try{
-            List<String> authorizations = getAuthorizations(exchange);
-
-            if(isNotExistsAuthorizationHeader(authorizations)) {
-                throw new NotExistsAuthorization();
-            }
+            List<String> authorizations = authorizationHeaderManager.getAuthorizations(exchange);
 
             String authorization = authorizations.stream()
-                    .filter(this::isBearerType)
+                    .filter(authorizationHeaderManager::isBearerType)
                     .findFirst()
                     .orElseThrow(NotExistsAuthorization::new);
 
-            String jwtToken = parseAuthorizationToken(authorization);
+            String jwtToken = authorizationHeaderManager.parseAuthorizationToken(authorization, AUTH_TYPE_BEARER);
             if(jwtManager.isValidateExpire(jwtToken)) {
                 throw new AccessTokenExpiredException();
             }
@@ -76,23 +72,6 @@ public class JwtAuthorizationFilter implements GatewayFilter {
         } catch (JsonProcessingException ex) {
             throw new RuntimeException(ex);
         }
-    }
-
-    private boolean isBearerType(String authorization) {
-        return authorization.startsWith(AUTH_TYPE);
-    }
-
-    private List<String> getAuthorizations(ServerWebExchange exchange) {
-        ServerHttpRequest request = exchange.getRequest();
-        return request.getHeaders().get(HttpHeaders.AUTHORIZATION);
-    }
-
-    private String parseAuthorizationToken(String authorization) {
-        return authorization.replace(AUTH_TYPE, "").trim();
-    }
-
-    private boolean isNotExistsAuthorizationHeader(List<String> authorizations) {
-        return authorizations == null || authorizations.isEmpty();
     }
 
     record ErrorResponse(int code, String message){}
