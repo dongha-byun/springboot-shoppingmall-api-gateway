@@ -47,7 +47,7 @@ public class GatewayConfiguration {
                         .uri("lb://USER-SERVICE")
                 )
                 .route("user-service-4", predicateSpec -> predicateSpec
-                        .path("/refresh")
+                        .path("/refresh", "/logout")
                         .and().method(HttpMethod.POST)
                         .filters(gatewayFilterSpec -> gatewayFilterSpec
                                 .removeRequestHeader(HttpHeaders.COOKIE)
