@@ -71,6 +71,13 @@ public class GatewayConfiguration {
                         )
                         .uri("lb://MAIN-SERVICE")
                 )
+                .route("main-service-3", predicateSpec -> predicateSpec
+                        .path("/products/**")
+                        .and().method(HttpMethod.GET)
+                        .filters(gatewayFilterSpec -> gatewayFilterSpec
+                                .removeRequestHeader(HttpHeaders.COOKIE))
+                        .uri("lb://MAIN-SERVICE")
+                )
                 .route("category-service-1", predicateSpec -> predicateSpec
                         .path("/category-service/**")
                         .filters(gatewayFilterSpec -> gatewayFilterSpec
