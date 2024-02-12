@@ -54,6 +54,22 @@ public class GatewayConfiguration {
                                 .filter(expireTokenFilter))
                         .uri("lb://USER-SERVICE")
                 )
+                .route("user-service-5", predicateSpec -> predicateSpec
+                        .path("/users/grade-info")
+                        .and().method(HttpMethod.GET)
+                        .filters(gatewayFilterSpec -> gatewayFilterSpec
+                                .removeRequestHeader(HttpHeaders.COOKIE)
+                                .filter(jwtAuthorizationFilter)
+                        )
+                        .uri("lb://USER-SERVICE")
+                )
+                .route("user-grade-image-viewer", predicateSpec -> predicateSpec
+                        .path("/images/logo/grade/**")
+                        .and().method(HttpMethod.GET)
+                        .filters(gatewayFilterSpec -> gatewayFilterSpec
+                                .removeRequestHeader(HttpHeaders.COOKIE))
+                        .uri("lb://USER-SERVICE")
+                )
                 .route("main-service-1", predicateSpec -> predicateSpec
                         .path("/partners/login")
                         .and().method(HttpMethod.POST)
@@ -63,6 +79,14 @@ public class GatewayConfiguration {
                         .uri("lb://MAIN-SERVICE")
                 )
                 .route("main-service-2", predicateSpec -> predicateSpec
+                        .path("/partners/**")
+                        .filters(gatewayFilterSpec -> gatewayFilterSpec
+                                .removeRequestHeader(HttpHeaders.COOKIE)
+                                .filter(jwtAuthorizationFilter)
+                        )
+                        .uri("lb://MAIN-SERVICE")
+                )
+                .route("main-service", predicateSpec -> predicateSpec
                         .order(Integer.MAX_VALUE)
                         .path("/**")
                         .filters(gatewayFilterSpec -> gatewayFilterSpec
@@ -71,8 +95,8 @@ public class GatewayConfiguration {
                         )
                         .uri("lb://MAIN-SERVICE")
                 )
-                .route("main-service-3", predicateSpec -> predicateSpec
-                        .path("/products/**")
+                .route("product-service-1", predicateSpec -> predicateSpec
+                        .path("/products/**", "/search-products")
                         .and().method(HttpMethod.GET)
                         .filters(gatewayFilterSpec -> gatewayFilterSpec
                                 .removeRequestHeader(HttpHeaders.COOKIE))
